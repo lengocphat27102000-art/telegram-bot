@@ -17,7 +17,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # =========================
 BOT_TOKEN = os.getenv("8293088764:AAEUeKoWGUVhqXtTKRz1In_iMjk0JVKgGOo")        # token BotFather
 CHANNEL_ID = os.getenv("-1003648760665")      # -100xxxxxxxxxx
-WEBHOOK_URL = os.getenv("https://telegram-bot-miyz.onrender.com/webhook")    # https://ten-app.onrender.com/webhook
+WEBHOOK_URL = os.getenv("https://telegram-bot-faj6.onrender.com/webhook")    # https://ten-app.onrender.com/webhook
 PORT = int(os.getenv("PORT", 10000))
 
 logging.basicConfig(level=logging.INFO)
@@ -122,5 +122,6 @@ async def setup():
 if __name__ == "__main__":
     asyncio.run(setup())
     app.run(host="0.0.0.0", port=PORT)
+
 
 
