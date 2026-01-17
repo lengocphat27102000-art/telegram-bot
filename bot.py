@@ -1,127 +1,68 @@
 import os
-import logging
-import asyncio
 from flask import Flask, request
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import (
     Application,
     CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
+    ContextTypes
 )
-from apscheduler.schedulers.background import BackgroundScheduler
 
-# =========================
-# ENV – BẮT BUỘC ĐIỀN TRÊN RENDER
-# =========================
-BOT_TOKEN = os.getenv("8293088764:AAEUeKoWGUVhqXtTKRz1In_iMjk0JVKgGOo")        # token BotFather
-CHANNEL_ID = os.getenv("-1003648760665")      # -100xxxxxxxxxx
-WEBHOOK_URL = os.getenv("https://telegram-bot-faj6.onrender.com/webhook")    # https://ten-app.onrender.com/webhook
-PORT = int(os.getenv("PORT", 10000))
+# ===== ENV =====
+BOT_TOKEN = os.getenv("8293088764:AAEUeKoWGUVhqXtTKRz1In_iMjk0JVKgGOo")
+CHANNEL_ID = os.getenv("-1003648760665")
+WEBHOOK_URL = os.getenv("https://telegram-bot-faj6.onrender.com/webhook")
 
-logging.basicConfig(level=logging.INFO)
+if not BOT_TOKEN:
+    raise RuntimeError("❌ BOT_TOKEN is missing in Environment Variables")
 
-# =========================
-# BOT COMMANDS
-# =========================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "🤖 BOT CHỨNG KHOÁN\n\n"
-        "/bangtin – Bảng tin thị trường\n"
-        "/nhan_dinh – Nhận định\n"
-        "/khuyen_nghi – Khuyến nghị\n"
-        "/post <nội dung> – Đăng channel"
-    )
-    await update.message.reply_text(text)
-
-async def bang_tin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📊 BẢNG TIN THỊ TRƯỜNG\n"
-        "• VNINDEX: cập nhật\n"
-        "• Thanh khoản: cập nhật\n"
-        "• Khối ngoại: cập nhật"
-    )
-
-async def nhan_dinh(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📈 NHẬN ĐỊNH THỊ TRƯỜNG\n"
-        "Xu hướng: Sideway\n"
-        "Chiến lược: Quan sát – chọn lọc cổ phiếu"
-    )
-
-async def khuyen_nghi(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "💡 KHUYẾN NGHỊ\n"
-        "CP: ABC\n"
-        "Vùng mua: 20–21\n"
-        "Target: 24\n"
-        "Cắt lỗ: 19"
-    )
-
-async def post_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("❌ Cú pháp: /post <nội dung>")
-        return
-
-    message = " ".join(context.args)
-    await context.bot.send_message(chat_id=CHANNEL_ID, text=message)
-    await update.message.reply_text("✅ Đã đăng lên channel")
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"📩 Bạn gửi: {update.message.text}")
-
-# =========================
-# AUTO JOB
-# =========================
-def auto_bang_tin():
-    asyncio.run(
-        application.bot.send_message(
-            chat_id=CHANNEL_ID,
-            text="⏰ BẢNG TIN TỰ ĐỘNG\nVNINDEX – Thanh khoản – Nhóm ngành"
-        )
-    )
-
-# =========================
-# FLASK + WEBHOOK
-# =========================
+# ===== BOT =====
 app = Flask(__name__)
+bot = Bot(token=BOT_TOKEN)
+
 application = Application.builder().token(BOT_TOKEN).build()
 
+# ===== COMMANDS =====
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🤖 Bot chứng khoán đã hoạt động!\n"
+        "Gõ /market để xem bảng tin\n"
+        "Gõ /help để xem lệnh"
+    )
+
+async def market(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📊 BẢNG TIN THỊ TRƯỜNG\n"
+        "- VNINDEX: 1.2xx\n"
+        "- Thanh khoản: ...\n"
+        "- Xu hướng: Sideway / Uptrend"
+    )
+
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "/market – Bảng tin\n"
+        "/start – Khởi động bot\n"
+        "/help – Trợ giúp"
+    )
+
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("market", market))
+application.add_handler(CommandHandler("help", help_cmd))
+
+# ===== WEBHOOK =====
 @app.route("/webhook", methods=["POST"])
 async def webhook():
-    data = request.get_json(force=True)
-    update = Update.de_json(data, application.bot)
+    update = Update.de_json(request.get_json(force=True), bot)
     await application.process_update(update)
     return "ok"
 
 @app.route("/")
-def home():
+def index():
     return "Bot is running"
 
-# =========================
-# START
-# =========================
-async def setup():
-    await application.initialize()
-    await application.bot.set_webhook(WEBHOOK_URL)
-
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("bangtin", bang_tin))
-    application.add_handler(CommandHandler("nhan_dinh", nhan_dinh))
-    application.add_handler(CommandHandler("khuyen_nghi", khuyen_nghi))
-    application.add_handler(CommandHandler("post", post_channel))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(auto_bang_tin, "cron", hour=8, minute=30)
-    scheduler.start()
-
-    logging.info("🚀 Bot đã sẵn sàng")
-
+# ===== START =====
 if __name__ == "__main__":
-    asyncio.run(setup())
-    app.run(host="0.0.0.0", port=PORT)
-
-
-
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        webhook_url=WEBHOOK_URL + "/webhook"
+    )
